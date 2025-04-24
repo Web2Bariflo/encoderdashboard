@@ -1,10 +1,12 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import mqtt from "mqtt";
+import axios from "axios";
+const apiUrl = import.meta.env.VITE_API_URL;
 
 const MqttContext = createContext();
 
 export const MqttProvider = ({ children }) => {
-  const [client, setClient] = useState(null);
+  // const [client, setClient] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState("disconnected");
   const [eventLogs, setEventLogs] = useState([]);
   const [passedMessage, setPassedMessage] = useState(null);
@@ -12,11 +14,7 @@ export const MqttProvider = ({ children }) => {
   const [data, setData] = useState(() => {
     return {
       "123/rnd": [],
-      // "pomon/rnd/status": [],
- 
     };
-
-    
   });
 
   useEffect(() => {
@@ -41,10 +39,8 @@ export const MqttProvider = ({ children }) => {
     mqttClient.on("connect", () => {
       handleStatusChange("connected");
       mqttClient.subscribe([
-        "123/rnd",
+        "123/gear",
         // "pomon/rnd/status"
-        // "project/maintenance/status",
-        // "project/maintenance/test",
       ]);
     });
 
@@ -57,22 +53,22 @@ export const MqttProvider = ({ children }) => {
     });
 
     mqttClient.on("error", (err) => {
-      console.error("MQTT error:", err);
-      handleStatusChange("error");
+      // console.error("MQTT error:", err);
+      // handleStatusChange("error");
     });
 
-    mqttClient.on("message", (topic, message) => {
+    mqttClient.on("message", async (topic, message) => {
       const messageStr = message.toString();
       console.log(`📩 ${topic}:`, messageStr);
-    
+
       // Split multi-line messages (if both devices are in one message)
       const lines = messageStr.split('\n').map(line => line.trim()).filter(line => line.length > 0);
-    
+
       const newMessages = lines.map(line => ({
         time: new Date().toISOString(),
         value: line,
       }));
-    
+
       setData((prevData) => {
         const existing = prevData[topic] || [];
         const updatedData = {
@@ -81,23 +77,27 @@ export const MqttProvider = ({ children }) => {
         };
         return updatedData;
       });
-    
-      // Filter specific logs for eventLogs
-      const allowedLogs = [             
-        "New R&D event scheduled.",
-        "Activated Aeration Device",
-        "Deactivated Aeration Device",
-      ];
-    
+
+      if (topic === "123/gear") {
+        try {
+          await axios.post(`${apiUrl}/gear_value_view/`, {
+            "value": messageStr,
+          });
+          console.log("✅ Sent gear message to API");
+        } catch (err) {
+          console.error("❌ Failed to send gear message to API:", err);
+        }
+      }
+
       lines.forEach((line) => {
         // if (topic === "pomon/rnd/status" && allowedLogs.some(msg => line.includes(msg))) {
-        if (topic === "123/rnd" && allowedLogs.some(msg => line.includes(msg))) {
+        if (topic === "123/gear" && allowedLogs.some(msg => line.includes(msg))) {
           setEventLogs(prev => [...prev, { time: new Date().toISOString(), message: line }]);
         }
       });
     });
 
-    setClient(mqttClient);
+    // setClient(mqttClient);
 
     return () => {
       mqttClient.end();
@@ -105,48 +105,9 @@ export const MqttProvider = ({ children }) => {
     };
   }, []);
 
-  // const publishMessage = (topic, message) => {
-  //   if (client && client.connected) {
-  //     client.publish(topic, message);
-  //     console.log(`🚀 Published to ${topic}:`, message);
-  //   } else {
-  //     console.warn("❌ MQTT client not connected");
-  //   }
-  // };
-
-
-  const publishMessage = (topic, message) => {
-    if (client && client.connected) {
-      client.publish(topic, message);
-      console.log(`🚀 Published to ${topic}:`, message);
-
-      if (topic === "pomon/rnd/schedule") {
-      // if (topic === "456/rnd") {
-        try {
-          const parsed = JSON.parse(message);
-          setPassedMessage(parsed); // ✅ Save the latest published schedule event
-        } catch (err) {
-          console.error("Failed to parse R&D schedule message:", err);
-        }
-      }
-    } else {
-      console.warn("❌ MQTT client not connected");
-    }
-  };
-
-  const clearTopicData = (topic) => {
-    setData((prevData) => {
-      const updatedData = {
-        ...prevData,
-        [topic]: [],
-      };
-      return updatedData;
-    });
-  };
-
   return (
     <MqttContext.Provider
-      value={{ data, publishMessage, clearTopicData, connectionStatus, eventLogs , passedMessage }}
+      value={{ data, connectionStatus, eventLogs, passedMessage }}
     >
       {children}
     </MqttContext.Provider>

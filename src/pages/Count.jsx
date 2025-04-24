@@ -4,10 +4,11 @@ import { DateRange } from "react-date-range";
 import { format } from "date-fns";
 import "react-date-range/dist/styles.css";
 import "react-date-range/dist/theme/default.css";
-
+import { useMqtt } from "../store/MqttContext";
 const apiUrl = import.meta.env.VITE_API_URL;
 
 const Count = () => {
+    const { publishMessage } = useMqtt();
     const [fuelCount, setFuelCount] = useState(null);
     const [fuelEntries, setFuelEntries] = useState([]);
     const [sensorStats, setSensorStats] = useState({
@@ -34,8 +35,6 @@ const Count = () => {
             const start = format(dateRange[0].startDate, "yyyy-MM-dd");
             const end = format(dateRange[0].endDate, "yyyy-MM-dd");
 
-
-
             const response = await axios.get(`${apiUrl}/filter_gear_value/`, {
                 params: {
                     from_date: start,
@@ -45,8 +44,7 @@ const Count = () => {
 
             const entries = response.data || [];
             setFuelEntries(entries);
-
-            console.log(response.data);
+            console.log("📥 Fuel Entries:", entries);
 
             // Calculate total quantity
             const total = entries.reduce((sum, item) => {
@@ -56,11 +54,9 @@ const Count = () => {
 
             setFuelCount(total);
 
-
-
-            // Update sensor stats (assuming your backend returns the stats as part of the response)
+            // Update sensor stats (placeholder)
             const stats = {
-                R: { min: 0, max: 100, avg: 50 },  // Example placeholder stats
+                R: { min: 0, max: 100, avg: 50 },
                 Y: { min: 0, max: 100, avg: 50 },
                 B: { min: 0, max: 100, avg: 50 },
                 C: { min: 0, max: 100, avg: 50 },
@@ -68,12 +64,24 @@ const Count = () => {
             };
             setSensorStats(stats);
 
+            // ✅ Build message object here
+            // const message = {
+            //     startDate: start,
+            //     endDate: end,
+            //     // totalQuantity: total,
+            // };
+
+            // // ✅ Call publishMessage here
+            // publishMessage("123/gear", JSON.stringify(message));
+
             console.log("📥 Total Quantity:", total);
         } catch (error) {
             console.error("❌ GET error:", error);
             setFuelCount("Error fetching data");
         }
     };
+
+
 
     return (
         <div className=" p-4 rounded">
@@ -224,7 +232,8 @@ const Count = () => {
                                     <strong>Date:</strong> {entry.date}
                                 </p>
                                 <p>
-                                    <strong>Gearvalue:</strong> {entry.gear_value}
+                                    <strong>Gearvalue:</strong> {entry.value
+                                    }
                                 </p>
                                 <p>
                                     <strong>Time:</strong> {entry.time}
