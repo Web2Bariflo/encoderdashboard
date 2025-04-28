@@ -78,11 +78,11 @@ const Count = () => {
     };
 
     return (
-        <div className="p-4 rounded">
-            <h2 className="text-lg font-semibold mb-4">Gear Value Count</h2>
+        <div className="rounded p-2">
+            {/* <h2 className="text-lg font-semibold mb-4">Gear Value Count</h2> */}
 
             {/* Start Date Input */}
-            <div className="mb-4 relative">
+            <div className="mb-2 relative">
                 <label className="block text-sm font-medium mb-1">Start Date</label>
                 <input
                     type="text"
@@ -160,34 +160,14 @@ const Count = () => {
             </button>
 
             {/* Flex Row Layout */}
-            <div className="flex justify-between space-x-2">
-                {/* Left: Raw Response Entries */}
-                <div className="w-2/3 overflow-y-auto max-h-60">
-                    {gearEntries.length > 0 && (
-                        <div>
-                            <h3 className="font-medium mb-2">Raw Response Data:</h3>
-                            <div className="border border-gray-400 p-1 rounded">
-                                {gearEntries.map((entry, index) => (
-                                    <div
-                                        key={index}
-                                        className="border-b border-gray-300 p-2 last:border-b-0"
-                                    >
-                                        <p><strong>Date:</strong> {entry.date}</p>
-                                        <p><strong>Gearvalue:</strong> {entry.value}</p>
-                                        <p><strong>Time:</strong> {entry.time}</p>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                </div>
+            <div className="flex flex-col space-y-2">
+                {/* Raw Response Entries */}
 
-                {/* Right: Gear Stats */}
-                <div className="w-1/3">
+                <div className="flex-1">
                     {gearStats && (
-                        <div className="bg-gray-100 p-1 rounded">
-                            <p className="font-medium text-lg mb-2">Gear Value Stats:</p>
-                            <div className="space-y-2">
+                        <div className="bg-gradient-to-r from-blue-100 to-blue-200 rounded-lg p-4 shadow-sm">
+                            <p className="font-semibold text-l text-gray-800 mb-1 border-b">Gear Value Stats</p>
+                            <div className="space-y-2 text-gray-700">
                                 <p><strong>Average:</strong> {gearStats.average?.toFixed(2)}</p>
                                 <p><strong>Min:</strong> {gearStats.min}</p>
                                 <p><strong>Max:</strong> {gearStats.max}</p>
@@ -195,7 +175,31 @@ const Count = () => {
                         </div>
                     )}
                 </div>
+
+
+
+                {/* Gear Stats */}
+                <div className="flex-1 h-20">
+                    {gearEntries.length > 0 && (
+                        <div>
+                            {/* <h3 className="font-semibold text-xl text-blue-600 mb-3">Raw Response Data</h3> */}
+                            <div className="border rounded-lg shadow-sm p-3 max-h-44 overflow-y-auto bg-white">
+                                {gearEntries.map((entry, index) => (
+                                    <div
+                                        key={index}
+                                        className="border-b last:border-b-0 py-2"
+                                    >
+                                        <p className="text-sm text-gray-700"><strong>Date:</strong> {entry.date}</p>
+                                        <p className="text-sm text-gray-700"><strong>Gearvalue:</strong> {entry.value}</p>
+                                        <p className="text-sm text-gray-700"><strong>Time:</strong> {entry.time}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
             </div>
+
         </div>
     );
 };
