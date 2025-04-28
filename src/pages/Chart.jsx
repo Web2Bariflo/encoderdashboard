@@ -4,174 +4,144 @@ import { useMqtt } from '../store/MqttContext';
 import { FiDownload } from 'react-icons/fi';
 import axios from 'axios';
 
-
 const apiUrl = import.meta.env.VITE_API_URL;
 
 const LineCharts = () => {
-    const { data, clearTopicData } = useMqtt();
-    // const messages = data['pomon/rnd/status'] || [];
-    const messages = data['123/rnd'] || [];
-    
+  const { data } = useMqtt();
+  const topics = ['publish/1', 'publish/2', 'publish/3', 'publish/4', 'publish/5'];
 
-    const chartRef = useRef(null);
-    const chartInstance = useRef(null);
+  const chartRef = useRef(null);
+  const chartInstance = useRef(null);
 
-    const [latestValues, setLatestValues] = useState({
-        R: 10,
-        Y: 20,
-        B: 0.1,
-        C: 10,
-        D: 50,
+  const [latestValues, setLatestValues] = useState({
+    'publish/1': 0,
+    'publish/2': 0,
+    'publish/3': 0,
+    'publish/4': 0,
+    'publish/5': 0,
+  });
+
+  // Update latest values whenever data changes
+  useEffect(() => {
+    const updatedValues = { ...latestValues };
+
+    topics.forEach((topic) => {
+      const messages = data[topic] || [];
+      if (messages.length > 0) {
+        const latestMessage = messages[messages.length - 1];
+        const parsed = parseFloat(latestMessage.value); // Handle the value as a number
+        if (!isNaN(parsed)) {
+          updatedValues[topic] = parsed; // Update with the latest value for this topic
+        }
+      }
     });
 
-    // Add the dateRange state for selecting the date range
-    const [dateRange, setDateRange] = useState([
-        {
-            startDate: new Date(),
-            endDate: new Date(),
-            // key: 'selection',
-        }
-    ]);
+    setLatestValues(updatedValues); // Update the latest values state
+  }, [data]); // Run this effect when `data` changes
 
-    useEffect(() => {
-        if (!messages.length) return;
+  // Rebuild chart whenever `latestValues` changes
+  useEffect(() => {
+    buildChart();
+  }, [latestValues]);
 
-        const parseMessage = (msg) => {
-            const { value } = msg;
-            const match = value.match(/R=([\d.]+), Y=([\d.]+), B=([\d.]+)(?:, C=([\d.]+))?(?:, D=([\d.]+))?/);
-            if (!match) return null;
+  const buildChart = () => {
+    if (chartInstance.current) chartInstance.current.destroy(); // Destroy the previous chart instance
 
-            return {
-                R: parseFloat(match[1]),
-                Y: parseFloat(match[2]),
-                B: parseFloat(match[3]),
-                C: parseFloat(match[4] || 0),
-                D: parseFloat(match[5] || 0),
-            };
-        };
+    const labels = ['publish/1', 'publish/2', 'publish/3', 'publish/4', 'publish/5'];
+    const values = labels.map((label) => latestValues[label]); // Get the values for each topic
+    const colors = ['#3b82f6', '#facc15', '#ef4444', '#10b981', '#8b5cf6'];
 
-        const latest = [...messages].reverse().map(parseMessage).find(Boolean);
-        if (latest) {
-            setLatestValues(latest);
-        }
-    }, [messages]);
+    chartInstance.current = new Chart(chartRef.current, {
+      type: 'bar',
+      data: {
+        labels, 
+        datasets: [{
+          label: 'Sensor Values',
+          data: values, 
+          backgroundColor: colors,
+          borderColor: colors,
+          borderWidth: 1,
+          fill: false,
+          barThickness: 40,      
+          maxBarThickness: 45,
 
-    useEffect(() => {
-        buildChart();
-    }, [latestValues]);
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: { beginAtZero: true },
+        },
+        plugins: {
+          legend: { display: true },
+        },
+        animation: {
+          duration: 800,
+          easing: 'easeOutBounce',
+        },
+      },
+    });
+  };
 
-    const buildChart = () => {
-        if (chartInstance.current) chartInstance.current.destroy();
+  const handleCSVDownload = async () => {
+    try {
+      const response = await axios.get(`${apiUrl}/download_gear_value/`, {
+        responseType: 'blob',
+    
+     });
 
-        const labels = ['R', 'Y', 'B', 'C', 'D'];
-        const values = labels.map((key) => latestValues[key]);
-        const colors = {
-            R: '#3b82f6', // blue
-            Y: '#facc15', // yellow
-            B: '#ef4444', // red
-            C: '#10b981', // green
-            D: '#8b5cf6', // purple
-        };
+      const csvData = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.readAsText(response.data);
+      });
 
-        chartInstance.current = new Chart(chartRef.current, {
-            type: 'bar',
-            data: {
-                labels,
-                datasets: [
-                    {
-                        label: 'Sensor Values',
-                        data: values,
-                        backgroundColor: labels.map((label) => colors[label]),
-                        borderRadius: 4,
-                        barThickness: 40,
-                    },
-                ],
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: { beginAtZero: true },
-                },
-                plugins: {
-                    legend: { display: false },
-                },
-                animation: {
-                    duration: 800,
-                    easing: 'easeOutBounce',
-                },
-            },
-        });
-    };
+      console.log('📄 Raw CSV Data:', csvData);
 
-    // Handle CSV download logic with proper time formatting
-    const handleCSVDownload = async () => {
-        try {
-        
-            const response = await axios.get(`${apiUrl}/download_gear_value/`, {
-                responseType: 'blob',
-            });
+      const excelFormattedCSV = csvData
+        .split('\n')
+        .map((row) => {
+          if (!row.trim()) return row;
+          const [date, time, value] = row.split(',');
+          return `\t"${date}","${time}",${value}`;
+        })
+        .join('\n');
 
-            // 2. Read blob as text (for logging and processing)
-            const csvData = await new Promise((resolve) => {
-                const reader = new FileReader();
-                reader.onload = () => resolve(reader.result);
-                reader.readAsText(response.data);
-            });
+      const blob = new Blob(["\uFEFF" + excelFormattedCSV], {
+        type: 'text/csv;charset=utf-8;',
+      });
 
-            console.log('📄 Raw CSV Data:', csvData);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'gear_values.csv');
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
 
-            // 3. Format CSV for Excel compatibility
-            const excelFormattedCSV = csvData
-                .split('\n')
-                .map((row) => {
-                    if (!row.trim()) return row; 
-                    const [date, time, value] = row.split(',');
+      console.log('✅ Excel-compatible CSV download started');
+    } catch (error) {
+      console.error('❌ Download failed:', error.response || error.message || error);
+    }
+  };
 
-                    // Force Excel to treat dates as text (prevent auto-formatting)
-                    return `\t"${date}","${time}",${value}`;
-                })
-                .join('\n');
-
-            // 4. Add UTF-8 BOM and set correct MIME type
-            const blob = new Blob(["\uFEFF" + excelFormattedCSV], {
-                type: 'text/csv;charset=utf-8;'
-            });
-
-            // 5. Trigger download
-            const url = window.URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.setAttribute('download', 'gear_values.csv');
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-
-            console.log('✅ Excel-compatible CSV download started');
-        } catch (error) {
-            console.error('❌ Download failed:', error.response || error.message || error);
-        }
-    };
-
-    return (
-        <div className="flex p-4">
-            <div className="flex w-full h-[500px] gap-4">
-                {/* Chart Container - 70% */}
-                <div className=" bg-white p-6 shadow rounded relative flex flex-col justify-between">
-                    <button
-                        onClick={handleCSVDownload}
-                        className="absolute top-4 right-4 bg-blue-400 hover:bg-blue-500 text-sm px-3 py-1 rounded flex items-center gap-1 text-white"
-                    >
-                        .csv
-                        <FiDownload className="text-base" />
-                    </button>
-
-                    <h2 className="text-lg font-semibold text-center mb-4">Live Sensor Values</h2>
-                    <canvas ref={chartRef} className="w-full h-full" />
-                </div>
-            </div>
+  return (
+    <div className="flex p-4">
+      <div className="flex w-full h-[500px] gap-4">
+        <div className="bg-white p-6 shadow rounded relative flex flex-col justify-between w-full">
+          <button
+            onClick={handleCSVDownload}
+            className="absolute top-4 right-4 bg-blue-400 hover:bg-blue-500 text-sm px-3 py-1 rounded flex items-center gap-1 text-white"
+          >
+            .csv <FiDownload className="text-base" />
+          </button>
+          <h2 className="text-lg font-semibold text-center mb-4">Live Sensor Values</h2>
+          <canvas ref={chartRef} className="w-full h-full" />
         </div>
-    );
+      </div>
+    </div>
+  );
 };
 
 export default LineCharts;

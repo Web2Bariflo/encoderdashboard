@@ -1,21 +1,29 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import mqtt from "mqtt";
 import axios from "axios";
+
 const apiUrl = import.meta.env.VITE_API_URL;
 
 const MqttContext = createContext();
 
 export const MqttProvider = ({ children }) => {
-  // const [client, setClient] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState("disconnected");
   const [eventLogs, setEventLogs] = useState([]);
   const [passedMessage, setPassedMessage] = useState(null);
 
-  const [data, setData] = useState(() => {
-    return {
-      "123/rnd": [],
-    };
-  });
+  const allowedLogs = [
+    "Activated",
+    "Deactivated",
+    "New R&D event scheduled",
+  ];
+
+  const [data, setData] = useState(() => ({
+    "publish/1": [],
+    "publish/2": [],
+    "publish/3": [],
+    "publish/4": [],
+    "publish/5": [],
+  }));
 
   useEffect(() => {
     const mqttClient = mqtt.connect({
@@ -30,74 +38,93 @@ export const MqttProvider = ({ children }) => {
     });
 
     const handleStatusChange = (newStatus) => {
-      if (connectionStatus !== newStatus) {
-        setConnectionStatus(newStatus);
-        console.log(`MQTT: ${newStatus}`);
-      }
+      setConnectionStatus(newStatus);
+      console.log(`MQTT: ${newStatus}`);
     };
 
     mqttClient.on("connect", () => {
       handleStatusChange("connected");
-      mqttClient.subscribe([
-        "123/gear",
-        // "pomon/rnd/status"
-      ]);
+      console.log("✅ Connected to MQTT Broker");
+
+      mqttClient.subscribe(
+        [
+          "publish/1",
+          "publish/2",
+          "publish/3",
+          "publish/4",
+          "publish/5",
+        ],
+        (err) => {
+          if (err) {
+            console.error("❌ Failed to subscribe:", err);
+          } else {
+            console.log("✅ Subscribed to topics");
+          }
+        }
+      );
     });
 
     mqttClient.on("reconnect", () => {
       handleStatusChange("reconnecting");
+      console.log("🔄 Reconnecting...");
     });
 
     mqttClient.on("offline", () => {
       handleStatusChange("disconnected");
+      console.log("❌ Disconnected from MQTT Broker");
     });
 
     mqttClient.on("error", (err) => {
-      // console.error("MQTT error:", err);
-      // handleStatusChange("error");
+      console.error("❌ MQTT error:", err);
+      handleStatusChange("error");
     });
 
     mqttClient.on("message", async (topic, message) => {
-      const messageStr = message.toString();
-      console.log(`📩 ${topic}:`, messageStr);
+      const raw = message.toString().trim();
+      console.log(`📩 Topic: ${topic} | Message: ${raw}`);
 
-      // Split multi-line messages (if both devices are in one message)
-      const lines = messageStr.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+      const lines = raw
+        .split("\n")
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0);
 
-      const newMessages = lines.map(line => ({
+      const newMessages = lines.map((line) => ({
         time: new Date().toISOString(),
-        value: line,
+        value: parseFloat(line), // directly convert to number
       }));
 
       setData((prevData) => {
         const existing = prevData[topic] || [];
-        const updatedData = {
+        return {
           ...prevData,
-          [topic]: [...existing, ...newMessages].slice(-4),
+          [topic]: [...existing, ...newMessages].slice(-5),
         };
-        return updatedData;
       });
 
-      if (topic === "123/gear") {
+      if (topic.startsWith("publish/")) {
         try {
           await axios.post(`${apiUrl}/gear_value_view/`, {
-            "value": messageStr,
+            // value: raw,
+            value: `${topic} | ${raw}`,
           });
-          console.log("✅ Sent gear message to API");
+          console.log("✅ Sent publish message to API");
         } catch (err) {
-          console.error("❌ Failed to send gear message to API:", err);
+          console.error("❌ Failed to send to API:", err);
         }
       }
 
       lines.forEach((line) => {
-        // if (topic === "pomon/rnd/status" && allowedLogs.some(msg => line.includes(msg))) {
-        if (topic === "123/gear" && allowedLogs.some(msg => line.includes(msg))) {
-          setEventLogs(prev => [...prev, { time: new Date().toISOString(), message: line }]);
+        if (
+          topic.startsWith("publish/") &&
+          allowedLogs.some((msg) => line.includes(msg))
+        ) {
+          setEventLogs((prev) => [
+            ...prev,
+            { time: new Date().toISOString(), message: line },
+          ]);
         }
       });
     });
-
-    // setClient(mqttClient);
 
     return () => {
       mqttClient.end();

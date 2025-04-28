@@ -5,19 +5,13 @@ import { format } from "date-fns";
 import "react-date-range/dist/styles.css";
 import "react-date-range/dist/theme/default.css";
 import { useMqtt } from "../store/MqttContext";
+
 const apiUrl = import.meta.env.VITE_API_URL;
 
 const Count = () => {
     const { publishMessage } = useMqtt();
-    const [fuelCount, setFuelCount] = useState(null);
-    const [fuelEntries, setFuelEntries] = useState([]);
-    const [sensorStats, setSensorStats] = useState({
-        R: { min: 0, max: 0, avg: 0 },
-        Y: { min: 0, max: 0, avg: 0 },
-        B: { min: 0, max: 0, avg: 0 },
-        C: { min: 0, max: 0, avg: 0 },
-        D: { min: 0, max: 0, avg: 0 },
-    });
+    const [gearStats, setGearStats] = useState(null);
+    const [gearEntries, setGearEntries] = useState([]);
     const [showStartCalendar, setShowStartCalendar] = useState(false);
     const [showEndCalendar, setShowEndCalendar] = useState(false);
 
@@ -29,7 +23,6 @@ const Count = () => {
         },
     ]);
 
-    // Fetch fuel entries and calculate total quantity
     const handleGetMessages = async () => {
         try {
             const start = format(dateRange[0].startDate, "yyyy-MM-dd");
@@ -43,49 +36,50 @@ const Count = () => {
             });
 
             const entries = response.data || [];
-            setFuelEntries(entries);
-            console.log("📥 Fuel Entries:", entries);
+            setGearEntries(entries);
+            console.log("📥 Gear Entries:", entries);
 
-            // Calculate total quantity
-            const total = entries.reduce((sum, item) => {
-                const qty = parseFloat(item.quantity);
-                return !isNaN(qty) ? sum + qty : sum;
-            }, 0);
+            // Correctly extract number after '|'
+            const gearValues = entries
+                .map((entry) => {
+                    if (!entry.value) return NaN;
+                    const parts = entry.value.split("|");
+                    if (parts.length > 1) {
+                        const valuePart = parts[1].trim();
+                        return parseFloat(valuePart);
+                    }
+                    return NaN;
+                })
+                .filter((val) => !isNaN(val));
+            if (gearValues.length > 0) {
+                const minValue = Math.min(...gearValues);
+                const maxValue = Math.max(...gearValues);
+                const avgValue = (minValue + maxValue) / 2;
 
-            setFuelCount(total);
+                console.log("✅ Correct Gear Values - Avg:", avgValue, "Min:", minValue, "Max:", maxValue);
 
-            // Update sensor stats (placeholder)
-            const stats = {
-                R: { min: 0, max: 100, avg: 50 },
-                Y: { min: 0, max: 100, avg: 50 },
-                B: { min: 0, max: 100, avg: 50 },
-                C: { min: 0, max: 100, avg: 50 },
-                D: { min: 0, max: 100, avg: 50 },
-            };
-            setSensorStats(stats);
+                setGearStats({
+                    average: avgValue,
+                    min: minValue,
+                    max: maxValue,
+                });
+            } else {
+                setGearStats({
+                    average: 0,
+                    min: 0,
+                    max: 0,
+                });
+            }
 
-            // ✅ Build message object here
-            // const message = {
-            //     startDate: start,
-            //     endDate: end,
-            //     // totalQuantity: total,
-            // };
-
-            // // ✅ Call publishMessage here
-            // publishMessage("123/gear", JSON.stringify(message));
-
-            console.log("📥 Total Quantity:", total);
         } catch (error) {
             console.error("❌ GET error:", error);
-            setFuelCount("Error fetching data");
+            setGearStats("Error fetching data");
         }
     };
 
-
-
     return (
-        <div className=" p-4 rounded">
-            <h2 className="text-lg font-semibold mb-4">Fuel Count</h2>
+        <div className="p-4 rounded">
+            <h2 className="text-lg font-semibold mb-4">Gear Value Count</h2>
 
             {/* Start Date Input */}
             <div className="mb-4 relative">
@@ -105,14 +99,12 @@ const Count = () => {
                         <DateRange
                             editableDateInputs={true}
                             onChange={(item) => {
-                                setDateRange([
-                                    {
-                                        ...dateRange[0],
-                                        startDate: item.selection.startDate,
-                                        endDate: dateRange[0].endDate,
-                                        key: "selection",
-                                    },
-                                ]);
+                                setDateRange([{
+                                    ...dateRange[0],
+                                    startDate: item.selection.startDate,
+                                    endDate: dateRange[0].endDate,
+                                    key: "selection",
+                                }]);
                                 setShowStartCalendar(false);
                             }}
                             moveRangeOnFirstSelection={false}
@@ -142,14 +134,12 @@ const Count = () => {
                         <DateRange
                             editableDateInputs={true}
                             onChange={(item) => {
-                                setDateRange([
-                                    {
-                                        ...dateRange[0],
-                                        startDate: dateRange[0].startDate,
-                                        endDate: item.selection.endDate,
-                                        key: "selection",
-                                    },
-                                ]);
+                                setDateRange([{
+                                    ...dateRange[0],
+                                    startDate: dateRange[0].startDate,
+                                    endDate: item.selection.endDate,
+                                    key: "selection",
+                                }]);
                                 setShowEndCalendar(false);
                             }}
                             moveRangeOnFirstSelection={false}
@@ -166,83 +156,46 @@ const Count = () => {
                 onClick={handleGetMessages}
                 className="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded mb-4 transition"
             >
-                Get Message Count
+                Get Gear Value Stats
             </button>
 
-            {/* Result */}
-            {fuelCount !== null && (
-                <div className="bg-gray-100 p-3 rounded">
-                    <p className="font-medium">Total Quantity:</p>
-                    <p className="text-lg font-bold">
-                        {typeof fuelCount === "number"
-                            ? `${fuelCount} Liters filled`
-                            : fuelCount}
-                    </p>
-                </div>
-            )}
-
-            {/* Sensor Stats */}
-            {/* <div className="bg-gray-100 p-3 rounded mt-4 h-96">
-        <h3 className="text-lg font-semibold mb-2">Sensor Stats</h3>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <h4 className="text-sm font-medium">R Sensor</h4>
-            <p>Min: {sensorStats.R.min}</p>
-            <p>Max: {sensorStats.R.max}</p>
-            <p>Avg: {sensorStats.R.avg}</p>
-          </div>
-          <div>
-            <h4 className="text-sm font-medium">Y Sensor</h4>
-            <p>Min: {sensorStats.Y.min}</p>
-            <p>Max: {sensorStats.Y.max}</p>
-            <p>Avg: {sensorStats.Y.avg}</p>
-          </div>
-          <div>
-            <h4 className="text-sm font-medium">B Sensor</h4>
-            <p>Min: {sensorStats.B.min}</p>
-            <p>Max: {sensorStats.B.max}</p>
-            <p>Avg: {sensorStats.B.avg}</p>
-          </div>
-          <div>
-            <h4 className="text-sm font-medium">C Sensor</h4>
-            <p>Min: {sensorStats.C.min}</p>
-            <p>Max: {sensorStats.C.max}</p>
-            <p>Avg: {sensorStats.C.avg}</p>
-          </div>
-          <div>
-            <h4 className="text-sm font-medium">D Sensor</h4>
-            <p>Min: {sensorStats.D.min}</p>
-            <p>Max: {sensorStats.D.max}</p>
-            <p>Avg: {sensorStats.D.avg}</p>
-          </div>
-        </div>
-      </div> */}
-
-            {/* Raw Response Data */}
-            {fuelEntries.length > 0 && (
-                <div className="mt-4">
-                    <h3 className="font-medium mb-2">Raw Response Data:</h3>
-                    <div className="border border-gray-400 p-3 rounded max-h-60 overflow-y-auto">
-                        {fuelEntries.map((entry, index) => (
-                            <div
-                                key={index}
-                                className="border-b border-gray-300 p-2 last:border-b-0"
-                            >
-                                <p>
-                                    <strong>Date:</strong> {entry.date}
-                                </p>
-                                <p>
-                                    <strong>Gearvalue:</strong> {entry.value
-                                    }
-                                </p>
-                                <p>
-                                    <strong>Time:</strong> {entry.time}
-                                </p>
+            {/* Flex Row Layout */}
+            <div className="flex justify-between space-x-2">
+                {/* Left: Raw Response Entries */}
+                <div className="w-2/3 overflow-y-auto max-h-60">
+                    {gearEntries.length > 0 && (
+                        <div>
+                            <h3 className="font-medium mb-2">Raw Response Data:</h3>
+                            <div className="border border-gray-400 p-1 rounded">
+                                {gearEntries.map((entry, index) => (
+                                    <div
+                                        key={index}
+                                        className="border-b border-gray-300 p-2 last:border-b-0"
+                                    >
+                                        <p><strong>Date:</strong> {entry.date}</p>
+                                        <p><strong>Gearvalue:</strong> {entry.value}</p>
+                                        <p><strong>Time:</strong> {entry.time}</p>
+                                    </div>
+                                ))}
                             </div>
-                        ))}
-                    </div>
+                        </div>
+                    )}
                 </div>
-            )}
+
+                {/* Right: Gear Stats */}
+                <div className="w-1/3">
+                    {gearStats && (
+                        <div className="bg-gray-100 p-1 rounded">
+                            <p className="font-medium text-lg mb-2">Gear Value Stats:</p>
+                            <div className="space-y-2">
+                                <p><strong>Average:</strong> {gearStats.average?.toFixed(2)}</p>
+                                <p><strong>Min:</strong> {gearStats.min}</p>
+                                <p><strong>Max:</strong> {gearStats.max}</p>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
         </div>
     );
 };
