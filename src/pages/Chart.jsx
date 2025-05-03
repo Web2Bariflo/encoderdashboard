@@ -60,15 +60,13 @@ const LineCharts = () => {
 
     // const labels = ['publish/1', 'publish/2', 'publish/3', 'publish/4', 'publish/5'];
 
-    const topicToLabelMap = {
-      'factory/gearbox1/input/rpm': 'Input RPM',
-      'factory/gearbox1/out1/rpm': 'Output 1 RPM',
-      'factory/gearbox1/out2/rpm': 'Output 2 RPM',
-      'factory/gearbox1/out3/rpm': 'Output 3 RPM',
-      'factory/gearbox1/out4/rpm': 'Output 4 RPM',
-    };
-    
-    const labels = Object.values(topicToLabelMap);                                                                                                                                                                                                                
+    const labels = [
+      'factory/gearbox1/input/rpm',
+      'factory/gearbox1/out1/rpm',
+      'factory/gearbox1/out2/rpm',
+      'factory/gearbox1/out3/rpm',
+      'factory/gearbox1/out4/rpm'
+    ];
     
     const values = labels.map((label) => latestValues[label]); 
     const colors = ['#3b82f6', '#facc15', '#ef4444', '#10b981', '#8b5cf6'];
