@@ -83,7 +83,7 @@ const Count = () => {
 
             {/* Start Date Input */}
             <div className="mb-2 relative">
-                <label className="block text-sm font-medium mb-1">Start Date</label>
+                <label className="block text-sm font-medium mb-1">Start Date </label>
                 <input
                     type="text"
                     readOnly
