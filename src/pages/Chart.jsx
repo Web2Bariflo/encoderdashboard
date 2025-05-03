@@ -8,18 +8,28 @@ const apiUrl = import.meta.env.VITE_API_URL;
 
 const LineCharts = () => {
   const { data } = useMqtt();
-  const topics = ['publish/1', 'publish/2', 'publish/3', 'publish/4', 'publish/5'];
+  // const topics = ['publish/1', 'publish/2', 'publish/3', 'publish/4', 'publish/5'];
+  const topics = [
+    'factory/gearbox1/input/rpm',
+    'factory/gearbox1/out1/rpm',
+    'factory/gearbox1/out2/rpm',
+    'factory/gearbox1/out3/rpm',
+    'factory/gearbox1/out4/rpm'
+  ];
 
   const chartRef = useRef(null);
   const chartInstance = useRef(null);
 
   const [latestValues, setLatestValues] = useState({
-    'publish/1': 0,
-    'publish/2': 0,
-    'publish/3': 0,
-    'publish/4': 0,
-    'publish/5': 0,
+
+    'factory/gearbox1/input/rpm': 0,
+    'factory/gearbox1/out1/rpm': 0,
+    'factory/gearbox1/out2/rpm': 0,
+    'factory/gearbox1/out3/rpm': 0,
+    'factory/gearbox1/out4/rpm': 0,
   });
+
+
 
   // Update latest values whenever data changes
   useEffect(() => {
@@ -37,7 +47,8 @@ const LineCharts = () => {
     });
 
     setLatestValues(updatedValues); // Update the latest values state
-  }, [data]); // Run this effect when `data` changes
+  }, [data]); // 
+  // Run this effect when `data` changes
 
   // Rebuild chart whenever `latestValues` changes
   useEffect(() => {
@@ -45,10 +56,21 @@ const LineCharts = () => {
   }, [latestValues]);
 
   const buildChart = () => {
-    if (chartInstance.current) chartInstance.current.destroy(); // Destroy the previous chart instance
+    if (chartInstance.current) chartInstance.current.destroy();
 
-    const labels = ['publish/1', 'publish/2', 'publish/3', 'publish/4', 'publish/5'];
-    const values = labels.map((label) => latestValues[label]); // Get the values for each topic
+    // const labels = ['publish/1', 'publish/2', 'publish/3', 'publish/4', 'publish/5'];
+
+    const topicToLabelMap = {
+      'factory/gearbox1/input/rpm': 'Input RPM',
+      'factory/gearbox1/out1/rpm': 'Output 1 RPM',
+      'factory/gearbox1/out2/rpm': 'Output 2 RPM',
+      'factory/gearbox1/out3/rpm': 'Output 3 RPM',
+      'factory/gearbox1/out4/rpm': 'Output 4 RPM',
+    };
+    
+    const labels = Object.values(topicToLabelMap);                                                                                                                                                                                                                
+    
+    const values = labels.map((label) => latestValues[label]); 
     const colors = ['#3b82f6', '#facc15', '#ef4444', '#10b981', '#8b5cf6'];
 
     chartInstance.current = new Chart(chartRef.current, {
