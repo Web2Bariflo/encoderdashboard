@@ -18,11 +18,11 @@ export const MqttProvider = ({ children }) => {
   ];
 
   const [data, setData] = useState(() => ({
-    "publish/1": [],
-    "publish/2": [],
-    "publish/3": [],
-    "publish/4": [],
-    "publish/5": [],
+    "factory/gearbox1/input/rpm": [],
+    "factory/gearbox1/out1/rpm": [],
+    "factory/gearbox1/out2/rpm": [],
+    "factory/gearbox1/out3/rpm": [],
+    "factory/gearbox1/out4/rpm": [],
   }));
 
   useEffect(() => {
@@ -48,11 +48,11 @@ export const MqttProvider = ({ children }) => {
 
       mqttClient.subscribe(
         [
-          "publish/1",
-          "publish/2",
-          "publish/3",
-          "publish/4",
-          "publish/5",
+          "factory/gearbox1/input/rpm",
+          "factory/gearbox1/out1/rpm",
+          "factory/gearbox1/out2/rpm",
+          "factory/gearbox1/out3/rpm",
+          "factory/gearbox1/out4/rpm",
         ],
         (err) => {
           if (err) {
@@ -101,10 +101,9 @@ export const MqttProvider = ({ children }) => {
         };
       });
 
-      if (topic.startsWith("publish/")) {
+      if (topic.startsWith("factory/gearbox1/")) {
         try {
           await axios.post(`${apiUrl}/gear_value_view/`, {
-            // value: raw,
             value: `${topic} | ${raw}`,
           });
           console.log("✅ Sent publish message to API");
@@ -115,7 +114,7 @@ export const MqttProvider = ({ children }) => {
 
       lines.forEach((line) => {
         if (
-          topic.startsWith("publish/") &&
+          topic.startsWith("factory/gearbox1/") &&
           allowedLogs.some((msg) => line.includes(msg))
         ) {
           setEventLogs((prev) => [
