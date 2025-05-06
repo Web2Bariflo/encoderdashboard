@@ -9,6 +9,7 @@ const apiUrl = import.meta.env.VITE_API_URL;
 const LineCharts = () => {
   const { data } = useMqtt();
   // const topics = ['publish/1', 'publish/2', 'publish/3', 'publish/4', 'publish/5'];
+
   const topics = [
     'factory/gearbox1/input/rpm',
     'factory/gearbox1/out1/rpm',
@@ -21,95 +22,136 @@ const LineCharts = () => {
   const chartInstance = useRef(null);
 
   const [latestValues, setLatestValues] = useState({
-
-    'factory/gearbox1/input/rpm': 0,
-    'factory/gearbox1/out1/rpm': 0,
-    'factory/gearbox1/out2/rpm': 0,
+    'factory/gearbox1/input/rpm': [],
+    'factory/gearbox1/out1/rpm': [],
+    'factory/gearbox1/out2/rpm': [],
     'factory/gearbox1/out3/rpm': 0,
     'factory/gearbox1/out4/rpm': 0,
   });
 
+  // const [latestValues, setLatestValues] = useState({
+  //   'publish/1': [],
+  //   'publish/2': [],
+  //   'publish/3': [],
+  //   'publish/4': [],
+  //   'publish/5': [],
+  // });
 
-
-  // Update latest values whenever data changes
+  // Update latestValues with last 30 messages for each topic
   useEffect(() => {
     const updatedValues = { ...latestValues };
-
+  
     topics.forEach((topic) => {
       const messages = data[topic] || [];
-      if (messages.length > 0) {
-        const latestMessage = messages[messages.length - 1];
-        const parsed = parseFloat(latestMessage.value); // Handle the value as a number
-        if (!isNaN(parsed)) {
-          updatedValues[topic] = parsed; // Update with the latest value for this topic
-        }
-      }
+      const numericMessages = messages
+        .map((msg) => parseFloat(msg.value))
+        .filter((val) => !isNaN(val));
+      updatedValues[topic] = numericMessages.slice(-30); // keep only last 10
     });
+  
+    setLatestValues(updatedValues);
+  }, [data]);
 
-    setLatestValues(updatedValues); // Update the latest values state
-  }, [data]); // 
-  // Run this effect when `data` changes
-
-  // Rebuild chart whenever `latestValues` changes
+  // Initialize chart once
   useEffect(() => {
-    buildChart();
-  }, [latestValues]);
-
-  const buildChart = () => {
-    if (chartInstance.current) chartInstance.current.destroy();
-
-    // const labels = ['publish/1', 'publish/2', 'publish/3', 'publish/4', 'publish/5'];
-
-    const labels = [
-      'factory/gearbox1/input/rpm',
-      'factory/gearbox1/out1/rpm',
-      'factory/gearbox1/out2/rpm',
-      'factory/gearbox1/out3/rpm',
-      'factory/gearbox1/out4/rpm'
-    ];
-    
-    const values = labels.map((label) => latestValues[label]); 
     const colors = ['#3b82f6', '#facc15', '#ef4444', '#10b981', '#8b5cf6'];
+    const ctx = chartRef.current.getContext('2d');
 
-    chartInstance.current = new Chart(chartRef.current, {
-      type: 'bar',
+    // const customLabels = {
+    //   'publish/1': 'Input',
+    //   'publish/2': 'Output1',
+    //   'publish/3': 'Output2',
+    //   'publish/4': 'Output3',
+    //   'publish/5': 'Output4',
+    // };
+
+        const customLabels = {
+      'factory/gearbox1/input/rpm': 'Input',
+      'factory/gearbox1/out1/rpm': 'Output1',
+      'factory/gearbox1/out2/rpm': 'Output2',
+      'factory/gearbox1/out3/rpm': 'Output3',
+      'factory/gearbox1/out4/rpm': 'Output4',
+    };
+
+    
+    
+
+    chartInstance.current = new Chart(ctx, {
+      type: 'line',
       data: {
-        labels, 
-        datasets: [{
-          label: 'Sensor Values',
-          data: values, 
-          backgroundColor: colors,
-          borderColor: colors,
-          borderWidth: 1,
+        labels: Array.from({ length: 10 }, (_, i) => i + 1),
+        datasets: topics.map((topic, index) => ({
+          label: customLabels[topic] || topic,
+          data: [],
+          borderColor: colors[index],
+          backgroundColor: 'white',
           fill: false,
-          barThickness: 40,      
-          maxBarThickness: 45,
-
-        }],
+          tension: 0,
+          pointRadius: 2,
+          pointHoverRadius: 4,
+        })),
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
         scales: {
-          y: { beginAtZero: true },
+          x: {
+            // reverse: true,
+            title: {
+              display: true,
+              // text: 'Data Points (1 to 30)',
+            },
+          },
+          y: {
+            beginAtZero: true,
+            title: {
+              display: true,
+              // text: 'RPM',
+            },
+          },
         },
         plugins: {
-          legend: { display: true },
+          legend: {
+            display: true,
+            position: 'top',
+            labels: {
+              boxWidth: 12,
+              padding: 15,
+            },
+          },
         },
         animation: {
-          duration: 800,
-          easing: 'easeOutBounce',
+          duration: 0,
         },
       },
     });
-  };
+  }, []);
+
+  // Update chart data dynamically without destroying
+  useEffect(() => {
+    const chart = chartInstance.current;
+    if (!chart) return;
+
+    const maxPoints = 10;
+    const xLabels = Array.from({ length: maxPoints }, (_, i) => i + 1);
+    chart.data.labels = xLabels;
+    
+    topics.forEach((topic, index) => {
+      const values = latestValues[topic] || [];
+      const recentValues = values.slice(-maxPoints); // last 10 values only
+      chart.data.datasets[index].data = recentValues;
+    });
+    
+    chart.update();
+    
+    
+  }, [latestValues]);
 
   const handleCSVDownload = async () => {
     try {
       const response = await axios.get(`${apiUrl}/download_gear_value/`, {
         responseType: 'blob',
-    
-     });
+      });
 
       const csvData = await new Promise((resolve) => {
         const reader = new FileReader();
@@ -147,7 +189,7 @@ const LineCharts = () => {
   };
 
   return (
-    <div className="flex p-4">
+    <div className="flex">
       <div className="flex w-full h-[500px] gap-4">
         <div className="bg-white p-6 shadow rounded relative flex flex-col justify-between w-full">
           <button

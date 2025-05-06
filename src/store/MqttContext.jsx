@@ -25,6 +25,15 @@ export const MqttProvider = ({ children }) => {
     "factory/gearbox1/out4/rpm": [],
   }));
 
+  // const [data, setData] = useState(() => ({
+  //   'publish/1': [],
+  //   'publish/2': [],
+  //   'publish/3': [],
+  //   'publish/4': [],
+  //   'publish/5': [],
+  // }));
+  
+
   useEffect(() => {
     const mqttClient = mqtt.connect({
       hostname: "mqttbroker.bc-pl.com",
@@ -54,6 +63,15 @@ export const MqttProvider = ({ children }) => {
           "factory/gearbox1/out3/rpm",
           "factory/gearbox1/out4/rpm",
         ],
+
+        // [
+        //   'publish/1',
+        //   'publish/2',
+        //   'publish/3',
+        //   'publish/4',
+        //   'publish/5',
+        // ],
+
         (err) => {
           if (err) {
             console.error("❌ Failed to subscribe:", err);
@@ -97,16 +115,17 @@ export const MqttProvider = ({ children }) => {
         const existing = prevData[topic] || [];
         return {
           ...prevData,
-          [topic]: [...existing, ...newMessages].slice(-5),
+          [topic]: [...existing, ...newMessages].slice(-20), // keep only the last 30 messages
         };
       });
 
       if (topic.startsWith("factory/gearbox1/")) {
+      // if (topic.startsWith("publish/")) {
         try {
           await axios.post(`${apiUrl}/gear_value_view/`, {
             value: `${topic} | ${raw}`,
           });
-          console.log("✅ Sent publish message to API");
+          // console.log("✅ Sent publish message to API");
         } catch (err) {
           console.error("❌ Failed to send to API:", err);
         }

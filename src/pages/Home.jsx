@@ -13,7 +13,7 @@ const Home = () => {
           {/* Device One */}
           <Link
             to="/chart"
-            className="w-28 h-28 bg-white rounded-lg shadow-md border border-gray-200 flex items-center justify-center
+            className="w-70 h-48 md:w-28 md:h-28 bg-white rounded-lg shadow-md border border-gray-200 flex items-center justify-center
               transition-all hover:shadow-lg hover:border-blue-400 hover:scale-105 cursor-pointer"
           >
             <span className="font-medium text-gray-700">Device One</span>
@@ -22,7 +22,7 @@ const Home = () => {
           {/* Device Two */}
           <Link
             to="/device-two"
-            className="w-28 h-28 bg-white rounded-lg shadow-md border border-gray-200 flex items-center justify-center
+            className="w-70 h-48 md:w-28 md:h-28 bg-white rounded-lg shadow-md border border-gray-200 flex items-center justify-center
               transition-all hover:shadow-lg hover:border-blue-400 hover:scale-105 cursor-pointer"
           >
             <span className="font-medium text-gray-700">Device Two</span>
@@ -31,7 +31,7 @@ const Home = () => {
           {/* Device Three */}
           <Link
             to="/device-three"
-            className="w-28 h-28 bg-white rounded-lg shadow-md border border-gray-200 flex items-center justify-center
+            className="w-70 h-48 md:w-28 md:h-28 bg-white rounded-lg shadow-md border border-gray-200 flex items-center justify-center
               transition-all hover:shadow-lg hover:border-blue-400 hover:scale-105 cursor-pointer"
           >
             <span className="font-medium text-gray-700">Device Three</span>
@@ -40,7 +40,7 @@ const Home = () => {
           {/* Device Four */}
           <Link
             to="/device-four"
-            className="w-28 h-28 bg-white rounded-lg shadow-md border border-gray-200 flex items-center justify-center
+            className="w-70 h-48 md:w-28 md:h-28 bg-white rounded-lg shadow-md border border-gray-200 flex items-center justify-center
               transition-all hover:shadow-lg hover:border-blue-400 hover:scale-105 cursor-pointer"
           >
             <span className="font-medium text-gray-700">Device Four</span>
@@ -49,7 +49,7 @@ const Home = () => {
           {/* Device Five */}
           <Link
             to="/device-five"
-            className="w-28 h-28 bg-white rounded-lg shadow-md border border-gray-200 flex items-center justify-center
+            className="w-70 h-48 md:w-28 md:h-28 bg-white rounded-lg shadow-md border border-gray-200 flex items-center justify-center
               transition-all hover:shadow-lg hover:border-blue-400 hover:scale-105 cursor-pointer"
           >
             <span className="font-medium text-gray-700">Device Five</span>
@@ -58,7 +58,7 @@ const Home = () => {
           {/* Device Six */}
           <Link
             to="/device-six"
-            className="w-28 h-28 bg-white rounded-lg shadow-md border border-gray-200 flex items-center justify-center
+            className="w-70 h-48 md:w-28 md:h-28 bg-white rounded-lg shadow-md border border-gray-200 flex items-center justify-center
               transition-all hover:shadow-lg hover:border-blue-400 hover:scale-105 cursor-pointer"
           >
             <span className="font-medium text-gray-700">Device Six</span>
