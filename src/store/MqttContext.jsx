@@ -119,21 +119,22 @@ export const MqttProvider = ({ children }) => {
         };
       });
 
-      if (topic.startsWith("factory/gearbox1/")) {
+      // if (topic.startsWith("factory/gearbox1/")) {
       // if (topic.startsWith("publish/")) {
-        try {
-          await axios.post(`${apiUrl}/gear_value_view/`, {
-            value: `${topic} | ${raw}`,
-          });
-          // console.log("✅ Sent publish message to API");
-        } catch (err) {
-          console.error("❌ Failed to send to API:", err);
-        }
-      }
+      //   try {
+      //     await axios.post(`${apiUrl}/gear_value_view/`, {
+      //       value: `${topic} | ${raw}`,
+      //     });
+      //     // console.log("✅ Sent publish message to API");
+      //   } catch (err) {
+      //     console.error("❌ Failed to send to API:", err);
+      //   }
+      // }
 
       lines.forEach((line) => {
         if (
           topic.startsWith("factory/gearbox1/") &&
+          // topic.startsWith("publish/") &&
           allowedLogs.some((msg) => line.includes(msg))
         ) {
           setEventLogs((prev) => [
@@ -152,7 +153,7 @@ export const MqttProvider = ({ children }) => {
 
   return (
     <MqttContext.Provider
-      value={{ data, connectionStatus, eventLogs, passedMessage }}
+      value={{ data, connectionStatus, eventLogs , passedMessage }}
     >
       {children}
     </MqttContext.Provider>

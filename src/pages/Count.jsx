@@ -9,11 +9,12 @@ import { useMqtt } from "../store/MqttContext";
 const apiUrl = import.meta.env.VITE_API_URL;
 
 const Count = () => {
-    const { publishMessage } = useMqtt();
+    // const { publishMessage } = useMqtt();
     const [gearStats, setGearStats] = useState(null);
     const [gearEntries, setGearEntries] = useState([]);
     const [showStartCalendar, setShowStartCalendar] = useState(false);
     const [showEndCalendar, setShowEndCalendar] = useState(false);
+    const [isLoading, setIsLoading] = useState(false); // 🔹 New state
 
     const [dateRange, setDateRange] = useState([
         {
@@ -24,6 +25,7 @@ const Count = () => {
     ]);
 
     const handleGetMessages = async () => {
+        setIsLoading(true); // 🔹 Start loader
         try {
             const start = format(dateRange[0].startDate, "yyyy-MM-dd");
             const end = format(dateRange[0].endDate, "yyyy-MM-dd");
@@ -39,7 +41,6 @@ const Count = () => {
             setGearEntries(entries);
             console.log("📥 Gear Entries:", entries);
 
-            // Correctly extract number after '|'
             const gearValues = entries
                 .map((entry) => {
                     if (!entry.value) return NaN;
@@ -51,6 +52,7 @@ const Count = () => {
                     return NaN;
                 })
                 .filter((val) => !isNaN(val));
+
             if (gearValues.length > 0) {
                 const minValue = Math.min(...gearValues);
                 const maxValue = Math.max(...gearValues);
@@ -70,17 +72,16 @@ const Count = () => {
                     max: 0,
                 });
             }
-
         } catch (error) {
             console.error("❌ GET error:", error);
             setGearStats("Error fetching data");
+        } finally {
+            setIsLoading(false); // 🔹 Stop loader
         }
     };
 
     return (
         <div className="rounded p-2">
-            {/* <h2 className="text-lg font-semibold mb-4">Gear Value Count</h2> */}
-
             {/* Start Date Input */}
             <div className="mb-2 relative">
                 <label className="block text-sm font-medium mb-1">Start Date </label>
@@ -151,18 +152,44 @@ const Count = () => {
                 )}
             </div>
 
-            {/* Button */}
+            {/* Button with loader */}
             <button
                 onClick={handleGetMessages}
-                className="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded mb-4 transition"
+                disabled={isLoading}
+                className={`w-full text-white py-2 px-4 rounded mb-4 transition ${
+                    isLoading ? "bg-blue-300 cursor-not-allowed" : "bg-blue-500 hover:bg-blue-600"
+                }`}
             >
-                Get Gear Value Stats
+                {isLoading ? (
+                    <div className="flex items-center justify-center gap-2">
+                        <svg
+                            className="animate-spin h-4 w-4 text-white"
+                            viewBox="0 0 24 24"
+                        >
+                            <circle
+                                className="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                strokeWidth="4"
+                                fill="none"
+                            ></circle>
+                            <path
+                                className="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8v4l3.536-3.536L12 0v4a8 8 0 00-8 8z"
+                            ></path>
+                        </svg>
+                        Loading...
+                    </div>
+                ) : (
+                    "Get Gear Value Stats"
+                )}
             </button>
 
-            {/* Flex Row Layout */}
+            {/* Stats and Raw Data */}
             <div className="flex flex-col space-y-2">
-                {/* Raw Response Entries */}
-
                 <div className="flex-1">
                     {gearStats && (
                         <div className="bg-gradient-to-r from-blue-100 to-blue-200 rounded-lg p-4 shadow-sm">
@@ -176,13 +203,9 @@ const Count = () => {
                     )}
                 </div>
 
-
-
-                {/* Gear Stats */}
                 <div className="flex-1 h-20">
                     {gearEntries.length > 0 && (
                         <div>
-                            {/* <h3 className="font-semibold text-xl text-blue-600 mb-3">Raw Response Data</h3> */}
                             <div className="border rounded-lg shadow-sm p-3 max-h-44 overflow-y-auto bg-white">
                                 {gearEntries.map((entry, index) => (
                                     <div
@@ -199,7 +222,6 @@ const Count = () => {
                     )}
                 </div>
             </div>
-
         </div>
     );
 };

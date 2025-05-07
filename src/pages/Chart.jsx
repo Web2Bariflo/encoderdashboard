@@ -8,6 +8,7 @@ const apiUrl = import.meta.env.VITE_API_URL;
 
 const LineCharts = () => {
   const { data } = useMqtt();
+  const [loading, setLoading] = useState(false);
   // const topics = ['publish/1', 'publish/2', 'publish/3', 'publish/4', 'publish/5'];
 
   const topics = [
@@ -40,7 +41,7 @@ const LineCharts = () => {
   // Update latestValues with last 30 messages for each topic
   useEffect(() => {
     const updatedValues = { ...latestValues };
-  
+
     topics.forEach((topic) => {
       const messages = data[topic] || [];
       const numericMessages = messages
@@ -48,13 +49,14 @@ const LineCharts = () => {
         .filter((val) => !isNaN(val));
       updatedValues[topic] = numericMessages.slice(-30); // keep only last 10
     });
-  
+
     setLatestValues(updatedValues);
   }, [data]);
 
   // Initialize chart once
   useEffect(() => {
-    const colors = ['#3b82f6', '#facc15', '#ef4444', '#10b981', '#8b5cf6'];
+    const colors = ['#f472b6', '#facc15', '#10b981', '#3b82f6', '#ef4444'];
+
     const ctx = chartRef.current.getContext('2d');
 
     // const customLabels = {
@@ -65,16 +67,13 @@ const LineCharts = () => {
     //   'publish/5': 'Output4',
     // };
 
-        const customLabels = {
+    const customLabels = {
       'factory/gearbox1/input/rpm': 'Input',
       'factory/gearbox1/out1/rpm': 'Output1',
       'factory/gearbox1/out2/rpm': 'Output2',
       'factory/gearbox1/out3/rpm': 'Output3',
       'factory/gearbox1/out4/rpm': 'Output4',
     };
-
-    
-    
 
     chartInstance.current = new Chart(ctx, {
       type: 'line',
@@ -135,20 +134,19 @@ const LineCharts = () => {
     const maxPoints = 10;
     const xLabels = Array.from({ length: maxPoints }, (_, i) => i + 1);
     chart.data.labels = xLabels;
-    
+
     topics.forEach((topic, index) => {
       const values = latestValues[topic] || [];
       const recentValues = values.slice(-maxPoints); // last 10 values only
       chart.data.datasets[index].data = recentValues;
     });
-    
+
     chart.update();
-    
-    
   }, [latestValues]);
 
   const handleCSVDownload = async () => {
     try {
+      setLoading(true); // Start loader
       const response = await axios.get(`${apiUrl}/download_gear_value/`, {
         responseType: 'blob',
       });
@@ -185,6 +183,8 @@ const LineCharts = () => {
       console.log('✅ Excel-compatible CSV download started');
     } catch (error) {
       console.error('❌ Download failed:', error.response || error.message || error);
+    } finally {
+      setLoading(false); // Stop loader
     }
   };
 
@@ -194,9 +194,42 @@ const LineCharts = () => {
         <div className="bg-white p-6 shadow rounded relative flex flex-col justify-between w-full">
           <button
             onClick={handleCSVDownload}
-            className="absolute top-4 right-4 bg-blue-400 hover:bg-blue-500 text-sm px-3 py-1 rounded flex items-center gap-1 text-white"
+            disabled={loading}
+            className={`absolute top-4 right-4 text-sm px-3 py-1 rounded flex items-center gap-1 text-white ${
+              loading
+                ? 'bg-blue-300 cursor-not-allowed'
+                : 'bg-blue-400 hover:bg-blue-500'
+            }`}
           >
-            .csv <FiDownload className="text-base" />
+            {loading ? (
+              <>
+                <svg
+                  className="animate-spin h-4 w-4 text-white"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  ></circle>
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 100 16 8 8 0 01-8-8z"
+                  ></path>
+                </svg>
+                Loading...
+              </>
+            ) : (
+              <>
+                .csv <FiDownload className="text-base" />
+              </>
+            )}
           </button>
           <h2 className="text-lg font-semibold text-center mb-4">Live Sensor Values</h2>
           <canvas ref={chartRef} className="w-full h-full" />
