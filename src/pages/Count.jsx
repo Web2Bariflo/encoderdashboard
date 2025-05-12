@@ -4,7 +4,7 @@ import { DateRange } from "react-date-range";
 import { format } from "date-fns";
 import "react-date-range/dist/styles.css";
 import "react-date-range/dist/theme/default.css";
-import { useMqtt } from "../store/MqttContext";
+
 
 const apiUrl = import.meta.env.VITE_API_URL;
 
@@ -44,7 +44,7 @@ const Count = () => {
             const gearValues = entries
                 .map((entry) => {
                     if (!entry.value) return NaN;
-                    const parts = entry.value.split("|");
+                    const parts = entry.value.split(":");
                     if (parts.length > 1) {
                         const valuePart = parts[1].trim();
                         return parseFloat(valuePart);
