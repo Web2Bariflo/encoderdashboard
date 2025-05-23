@@ -5,7 +5,6 @@ import { format } from "date-fns";
 import "react-date-range/dist/styles.css";
 import "react-date-range/dist/theme/default.css";
 
-
 const apiUrl = import.meta.env.VITE_API_URL;
 
 const Count = () => {
@@ -14,8 +13,9 @@ const Count = () => {
     const [gearEntries, setGearEntries] = useState([]);
     const [showStartCalendar, setShowStartCalendar] = useState(false);
     const [showEndCalendar, setShowEndCalendar] = useState(false);
-    const [isLoading, setIsLoading] = useState(false); // 🔹 New state
-
+    const [isLoading, setIsLoading] = useState(false);
+    const [topicStats, setTopicStats] = useState({});
+    const [filteredTopics, setFilteredTopics] = useState({});
     const [dateRange, setDateRange] = useState([
         {
             startDate: new Date(),
@@ -24,8 +24,9 @@ const Count = () => {
         },
     ]);
 
+
     const handleGetMessages = async () => {
-        setIsLoading(true); // 🔹 Start loader
+        setIsLoading(true);
         try {
             const start = format(dateRange[0].startDate, "yyyy-MM-dd");
             const end = format(dateRange[0].endDate, "yyyy-MM-dd");
@@ -41,42 +42,80 @@ const Count = () => {
             setGearEntries(entries);
             console.log("📥 Gear Entries:", entries);
 
-            const gearValues = entries
-                .map((entry) => {
-                    if (!entry.value) return NaN;
-                    const parts = entry.value.split(":");
-                    if (parts.length > 1) {
-                        const valuePart = parts[1].trim();
-                        return parseFloat(valuePart);
-                    }
-                    return NaN;
-                })
-                .filter((val) => !isNaN(val));
+            // Group by topic name from "value" field (e.g. Input_rpm, Output_rpm, etc.)
+            const topicWiseData = {};
 
-            if (gearValues.length > 0) {
-                const minValue = Math.min(...gearValues);
-                const maxValue = Math.max(...gearValues);
-                const avgValue = (minValue + maxValue) / 2;
+            entries.forEach((entry) => {
+                if (!entry.value) return;
 
-                console.log("✅ Correct Gear Values - Avg:", avgValue, "Min:", minValue, "Max:", maxValue);
+                const [topicRaw, valueRaw] = entry.value.split(":");
+                if (!topicRaw || !valueRaw) return;
+
+                const topic = topicRaw.trim(); // e.g. "Input_rpm"
+                const value = parseFloat(valueRaw.trim());
+
+                if (isNaN(value)) return;
+
+                if (!topicWiseData[topic]) {
+                    topicWiseData[topic] = [];
+                }
+
+                topicWiseData[topic].push({
+                    date: entry.date,
+                    time: entry.time,
+                    value,
+                });
+            });
+
+            console.log("📊 Topic-wise Data:", topicWiseData);
+
+            // Calculate min, max, avg for each topic
+            const statsPerTopic = {};
+            for (const [topic, data] of Object.entries(topicWiseData)) {
+                const values = data.map((d) => d.value);
+                if (values.length > 0) {
+                    const min = Math.min(...values);
+                    const max = Math.max(...values);
+                    const avg = values.reduce((a, b) => a + b, 0) / values.length;
+                    statsPerTopic[topic] = { min, max, average: avg };
+                }
+            }
+            setTopicStats(statsPerTopic);
+
+            // Optionally store topicWiseData in state
+            setFilteredTopics(topicWiseData);
+
+            // If you want to keep your original gearStats based on Input_rpm only:
+            const inputRpmValues = topicWiseData["Input_rpm"]?.map((d) => d.value) || [];
+            if (inputRpmValues.length > 0) {
+                const minValue = Math.min(...inputRpmValues);
+                const maxValue = Math.max(...inputRpmValues);
+                const sum = inputRpmValues.reduce((acc, val) => acc + val, 0);
+                const avgValue = sum / inputRpmValues.length;
+
+                const minMaxAverage = (minValue + maxValue) / 2;
+
 
                 setGearStats({
                     average: avgValue,
                     min: minValue,
                     max: maxValue,
+                     minMaxAverage: minMaxAverage,
                 });
             } else {
                 setGearStats({
                     average: 0,
                     min: 0,
                     max: 0,
+                     minMaxAverage: 0,
                 });
             }
         } catch (error) {
             console.error("❌ GET error:", error);
             setGearStats("Error fetching data");
+            setTopicStats({});
         } finally {
-            setIsLoading(false); // 🔹 Stop loader
+            setIsLoading(false);
         }
     };
 
@@ -100,12 +139,14 @@ const Count = () => {
                         <DateRange
                             editableDateInputs={true}
                             onChange={(item) => {
-                                setDateRange([{
-                                    ...dateRange[0],
-                                    startDate: item.selection.startDate,
-                                    endDate: dateRange[0].endDate,
-                                    key: "selection",
-                                }]);
+                                setDateRange([
+                                    {
+                                        ...dateRange[0],
+                                        startDate: item.selection.startDate,
+                                        endDate: dateRange[0].endDate,
+                                        key: "selection",
+                                    },
+                                ]);
                                 setShowStartCalendar(false);
                             }}
                             moveRangeOnFirstSelection={false}
@@ -135,12 +176,14 @@ const Count = () => {
                         <DateRange
                             editableDateInputs={true}
                             onChange={(item) => {
-                                setDateRange([{
-                                    ...dateRange[0],
-                                    startDate: dateRange[0].startDate,
-                                    endDate: item.selection.endDate,
-                                    key: "selection",
-                                }]);
+                                setDateRange([
+                                    {
+                                        ...dateRange[0],
+                                        startDate: dateRange[0].startDate,
+                                        endDate: item.selection.endDate,
+                                        key: "selection",
+                                    },
+                                ]);
                                 setShowEndCalendar(false);
                             }}
                             moveRangeOnFirstSelection={false}
@@ -156,9 +199,10 @@ const Count = () => {
             <button
                 onClick={handleGetMessages}
                 disabled={isLoading}
-                className={`w-full text-white py-2 px-4 rounded mb-4 transition ${
-                    isLoading ? "bg-blue-300 cursor-not-allowed" : "bg-blue-500 hover:bg-blue-600"
-                }`}
+                className={`w-full text-white py-2 px-4 rounded mb-4 transition ${isLoading
+                    ? "bg-blue-300 cursor-not-allowed"
+                    : "bg-blue-500 hover:bg-blue-600"
+                    }`}
             >
                 {isLoading ? (
                     <div className="flex items-center justify-center gap-2">
@@ -190,31 +234,40 @@ const Count = () => {
 
             {/* Stats and Raw Data */}
             <div className="flex flex-col space-y-2">
-                <div className="flex-1">
-                    {gearStats && (
-                        <div className="bg-gradient-to-r from-blue-100 to-blue-200 rounded-lg p-4 shadow-sm">
-                            <p className="font-semibold text-l text-gray-800 mb-1 border-b">Gear Value Stats</p>
-                            <div className="space-y-2 text-gray-700">
-                                <p><strong>Average:</strong> {gearStats.average?.toFixed(2)}</p>
-                                <p><strong>Min:</strong> {gearStats.min}</p>
-                                <p><strong>Max:</strong> {gearStats.max}</p>
-                            </div>
-                        </div>
-                    )}
-                </div>
+                {/* Topic-wise stats */}
+                {Object.keys(topicStats).length > 0 && (
+                    <div className=" bg-gray-100 rounded max-h-36 overflow-y-auto">
+                        <h3 className="font-semibold mb-2 text-gray-700">
+                            Topic-wise Stats
+                        </h3>
+                        {Object.entries(topicStats).map(([topic, stats]) => (
+                  <div>
+    <p className="font-semibold">{topic}</p>
+    <p>Average: {stats.average.toFixed(2)}</p>
+    <p>Min: {stats.min}</p>
+    <p>Max: {stats.max}</p>
+    <p>Min-Max Avg: {stats.minMaxAverage.toFixed(2)}</p> {/* ✅ New line */}
+</div>
+                        ))}
+                    </div>
+                )}
 
+                {/* Gear Entries */}
                 <div className="flex-1 h-20">
                     {gearEntries.length > 0 && (
                         <div>
-                            <div className="border rounded-lg shadow-sm p-3 max-h-44 overflow-y-auto bg-white">
+                            <div className="border rounded-lg shadow-sm p-3 max-h-36 overflow-y-auto bg-white">
                                 {gearEntries.map((entry, index) => (
-                                    <div
-                                        key={index}
-                                        className="border-b last:border-b-0 py-2"
-                                    >
-                                        <p className="text-sm text-gray-700"><strong>Date:</strong> {entry.date}</p>
-                                        <p className="text-sm text-gray-700"><strong>Gearvalue:</strong> {entry.value}</p>
-                                        <p className="text-sm text-gray-700"><strong>Time:</strong> {entry.time}</p>
+                                    <div key={index} className="border-b last:border-b-0 py-2">
+                                        <p className="text-sm text-gray-700">
+                                            <strong>Date:</strong> {entry.date}
+                                        </p>
+                                        <p className="text-sm text-gray-700">
+                                            <strong>Gearvalue:</strong> {entry.value}
+                                        </p>
+                                        <p className="text-sm text-gray-700">
+                                            <strong>Time:</strong> {entry.time}
+                                        </p>
                                     </div>
                                 ))}
                             </div>
@@ -222,6 +275,7 @@ const Count = () => {
                     )}
                 </div>
             </div>
+
         </div>
     );
 };
